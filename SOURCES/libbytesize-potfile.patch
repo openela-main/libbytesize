@@ -1,0 +1,203 @@
+From ee80e25d87b00236bae9f4d37cd5232bcb995f17 Mon Sep 17 00:00:00 2001
+From: Vojtech Trefny <vtrefny@redhat.com>
+Date: Tue, 29 Oct 2019 10:09:13 +0100
+Subject: [PATCH] Add POT file to git and do not rebuild it during every build
+
+This fixes bug with multilib packages in Fedora/RHEL -- we don't
+have a special package for translation files so we need to make
+sure the files are exactly same for every architecture. With POT
+file being generated during build the generated MO files are
+different because they contain timestamp from the POT file.
+POT file is now automatically updated during 'make bumpver'.
+---
+ Makefile.am              |   1 +
+ po/Makefile.am           |  12 ++---
+ po/libbytesize.pot       | 103 +++++++++++++++++++++++++++++++++++++++
+ tests/canary_tests.sh.in |   9 +---
+ 4 files changed, 111 insertions(+), 14 deletions(-)
+ create mode 100644 po/libbytesize.pot
+
+diff --git a/Makefile.am b/Makefile.am
+index ce06f1f..185d754 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -97,6 +97,7 @@ bumpver:
+ 	mv dist/libbytesize.spec.in.new dist/libbytesize.spec.in ; rm -f speclog ; \
+ 	sed -ri "s/(AC_INIT\(\[$(PACKAGE_NAME)\], \[)[0-9]+\.[0-9]+(\],.*)/\1$$VERSION.$$NEWSUBVERSION\2/" configure.ac ; \
+ 	sed -ri "s/Version:(\\s+)[-0-9.]+/Version:\\1$$VERSION.$$NEWSUBVERSION/" dist/libbytesize.spec.in ;
++	$(MAKE) -C po/ $(PACKAGE_NAME).pot-update
+
+ archive: po-pull
+ 	$(MAKE) distcheck
+diff --git a/po/Makefile.am b/po/Makefile.am
+index 5c288ab..de4ad7d 100644
+--- a/po/Makefile.am
++++ b/po/Makefile.am
+@@ -161,12 +161,12 @@ MSGMERGE_V_OPTIONS_1 = $(MSGMERGE_OPTIONS) --verbose
+
+ # Actually do stuff:
+ # .po files get distributed but not installed
+-dist_noinst_DATA = $(POFILES)
++dist_noinst_DATA = $(POFILES) $(POTFILE)
+
+ # Build the .mo files but don't actually do anything with them. The real
+ # install part is in the install-data-local target below. Build the .pot file
+ # as well, even if there are no .mo files to build, so it can be tested.
+-nodist_noinst_DATA = $(MOFILES) $(POTFILE)
++nodist_noinst_DATA = $(MOFILES)
+
+ # How to build the .pot file. This needs to be regenerated if anything that
+ # goes into it has changed.
+@@ -181,13 +181,13 @@ $(PACKAGE).pot-update:
+ 	@$(MAKE) $(POTFILE)
+
+ # How to build the merged .mpo files from the .po files
+-$(MERGED_POFILES): $(POFILES) $(POTFILE)
++$(MERGED_POFILES): $(POFILES)
+
+ .po.mpo:
+-	$(GETTEXT_V_MERGE)$(MSGMERGE) $(MSGMERGE_V_OPTIONS) -o $@ $< $(POTFILE)
++	$(GETTEXT_V_MERGE)$(MSGMERGE) $(MSGMERGE_V_OPTIONS) -o $@ $< $(top_srcdir)/po/$(POTFILE)
+
+ # How to build the .mo files from the .mpo files
+-$(MOFILES): $(MERGED_POFILES)
++$(MOFILES): $(MERGED_POFILES) $(POTFILE)
+
+ .mpo.mo:
+ 	$(GETTEXT_V_FORMAT)$(MSGFMT) $(MSGFMT_V_OPTIONS) -o $@ $<
+@@ -210,4 +210,4 @@ uninstall-local:
+ 		rm -f $(DESTDIR)$(localedir)/$$lang/LC_MESSAGES/$(PACKAGE).mo ; \
+ 	done
+
+-CLEANFILES = $(MERGED_POFILES) $(MOFILES) $(POTFILE)
++CLEANFILES = $(MERGED_POFILES) $(MOFILES)
+diff --git a/po/libbytesize.pot b/po/libbytesize.pot
+new file mode 100644
+index 0000000..5431896
+--- /dev/null
++++ b/po/libbytesize.pot
+@@ -0,0 +1,103 @@
++# SOME DESCRIPTIVE TITLE.
++# Copyright (C) YEAR Red Hat, Inc.
++# This file is distributed under the same license as the libbytesize package.
++# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
++#
++#, fuzzy
++msgid ""
++msgstr ""
++"Project-Id-Version: libbytesize 2.1\n"
++"Report-Msgid-Bugs-To: anaconda-devel-list@redhat.com\n"
++"POT-Creation-Date: 2019-10-29 12:28+0100\n"
++"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
++"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
++"Language-Team: LANGUAGE <LL@li.org>\n"
++"Language: \n"
++"MIME-Version: 1.0\n"
++"Content-Type: text/plain; charset=CHARSET\n"
++"Content-Transfer-Encoding: 8bit\n"
++
++#. TRANSLATORS: 'B' for bytes
++#: src/bs_size.c:52 src/bs_size.c:73
++msgid "B"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for kibibyte, 2**10 bytes
++#: src/bs_size.c:54
++msgid "KiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for mebibyte, 2**20 bytes
++#: src/bs_size.c:56
++msgid "MiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for gibibyte, 2**30 bytes
++#: src/bs_size.c:58
++msgid "GiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for tebibyte, 2**40 bytes
++#: src/bs_size.c:60
++msgid "TiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for pebibyte, 2**50 bytes
++#: src/bs_size.c:62
++msgid "PiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for exbibyte, 2**60 bytes
++#: src/bs_size.c:64
++msgid "EiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for zebibyte, 2**70 bytes
++#: src/bs_size.c:66
++msgid "ZiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for yobibyte, 2**80 bytes
++#: src/bs_size.c:68
++msgid "YiB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for kilobyte, 10**3 bytes
++#: src/bs_size.c:75
++msgid "KB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for megabyte, 10**6 bytes
++#: src/bs_size.c:77
++msgid "MB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for gigabyte, 10**9 bytes
++#: src/bs_size.c:79
++msgid "GB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for terabyte, 10**12 bytes
++#: src/bs_size.c:81
++msgid "TB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for petabyte, 10**15 bytes
++#: src/bs_size.c:83
++msgid "PB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for exabyte, 10**18 bytes
++#: src/bs_size.c:85
++msgid "EB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for zettabyte, 10**21 bytes
++#: src/bs_size.c:87
++msgid "ZB"
++msgstr ""
++
++#. TRANSLATORS: abbreviation for yottabyte, 10**24 bytes
++#: src/bs_size.c:89
++msgid "YB"
++msgstr ""
+diff --git a/tests/canary_tests.sh.in b/tests/canary_tests.sh.in
+index 13357e8..d5a5815 100644
+--- a/tests/canary_tests.sh.in
++++ b/tests/canary_tests.sh.in
+@@ -17,15 +17,8 @@ if [ -z "$top_srcdir" ]; then
+     top_srcdir="$(dirname "$0")/.."
+ fi
+
+-if [ -z "$top_builddir" ] ; then
+-    top_builddir="$(dirname "$0")/.."
+-fi
+-
+-# Make sure libbytesize.pot is up to date
+-make -C ${top_builddir}/po libbytesize.pot-update >/dev/null 2>&1
+-
+ PYTHONPATH="${PYTHONPATH}:${top_srcdir}/translation-canary"
+ export PYTHONPATH
+
+ # Run the translatable tests on the POT file
+-python3 -m translation_canary.translatable "${top_builddir}/po/libbytesize.pot"
++python3 -m translation_canary.translatable "${top_srcdir}/po/libbytesize.pot"
